@@ -20,7 +20,7 @@ import forge.toolbox.FOverlay;
  * screen reader is running, this class notes every display object as it is drawn, together with what
  * the object says about itself in {@link FDisplayObject#getAccessibleInfo()}, and hands the result to
  * the platform's {@link AccessibilityBridge}. Collecting at draw time means the screen reader is offered
- * exactly what a sighted player sees: nothing hidden, nothing clipped away, in the order it is painted.
+ * exactly what a sighted player sees: nothing hidden and nothing clipped away.
  *
  * <p>Without a bridge, or while no screen reader is running, none of this does any work.
  */
@@ -39,7 +39,9 @@ public final class Accessibility {
     private static long lastCollectTime;
     private static int disabledDepth;
     private static Object frameRoot;
-    private static final List<AccessibleNode> frameNodes = new ArrayList<>();
+    //one list for the screen and one for each overlay drawn on top of it, in paint order
+    private static final List<List<AccessibleNode>> frameLayers = new ArrayList<>();
+    private static List<AccessibleNode> frameNodes;
 
     private static volatile List<AccessibleNode> shownNodes = Collections.emptyList();
     private static Object shownRoot;
@@ -110,18 +112,31 @@ public final class Accessibility {
             return;
         }
         lastCollectTime = now;
-        frameNodes.clear();
+        frameLayers.clear();
+        startLayer();
         disabledDepth = 0;
         frameRoot = root;
         collecting = true;
     }
 
-    /** An overlay that swallows input hides everything drawn before it from the screen reader as well. */
+    /**
+     * Notes that an overlay is about to be drawn. What follows belongs to it and is read first.
+     * An overlay that swallows input also hides everything drawn before it, as it does for touches.
+     */
     public static void beginOverlay(FOverlay overlay) {
-        if (collecting && overlay.preventInputBehindOverlay()) {
-            frameNodes.clear();
-            frameRoot = overlay;
+        if (!collecting) {
+            return;
         }
+        if (overlay.preventInputBehindOverlay()) {
+            frameLayers.clear();
+        }
+        startLayer();
+        frameRoot = overlay;
+    }
+
+    private static void startLayer() {
+        frameNodes = new ArrayList<>();
+        frameLayers.add(frameNodes);
     }
 
     /**
@@ -130,6 +145,9 @@ public final class Accessibility {
      * @param visibleRect the part of the object that is on screen, in the units of touch coordinates
      */
     public static void beginObject(FDisplayObject obj, Rectangle visibleRect) {
+        if (!collecting) {
+            return;
+        }
         if (!obj.isEnabled()) {
             disabledDepth++;
         }
@@ -160,7 +178,7 @@ public final class Accessibility {
     }
 
     public static void endObject(FDisplayObject obj) {
-        if (disabledDepth > 0 && !obj.isEnabled()) {
+        if (collecting && disabledDepth > 0 && !obj.isEnabled()) {
             disabledDepth--;
         }
     }
@@ -171,13 +189,53 @@ public final class Accessibility {
             return;
         }
         collecting = false;
-        announceLive();
+        //the topmost overlay comes first, it is what the player has to deal with now
+        List<AccessibleNode> nodes = new ArrayList<>();
+        for (int i = frameLayers.size() - 1; i >= 0; i--) {
+            addInReadingOrder(frameLayers.get(i), nodes);
+        }
+        frameLayers.clear();
+        frameNodes = null;
+        announceLive(nodes);
         //a screen that had nothing to activate and now does is as good as a new one, e.g. loading has finished
-        boolean screenChanged = frameRoot != shownRoot || (hasButton(frameNodes) && !hasButton(shownNodes));
-        if (!screenChanged && sameNodes(frameNodes, shownNodes)) {
+        boolean screenChanged = frameRoot != shownRoot || (hasButton(nodes) && !hasButton(shownNodes));
+        if (!screenChanged && sameNodes(nodes, shownNodes)) {
             return;
         }
-        show(new ArrayList<>(frameNodes), frameRoot, screenChanged);
+        show(nodes, frameRoot, screenChanged);
+    }
+
+    /**
+     * Paint order says little about how a screen is read: a dialog paints its buttons before its message.
+     * So elements are read row by row from the top, and within a row text comes before the controls it
+     * belongs to, which puts a screen's caption before its back button and a prompt before its answers.
+     */
+    private static void addInReadingOrder(List<AccessibleNode> layer, List<AccessibleNode> result) {
+        List<AccessibleNode> sorted = new ArrayList<>(layer);
+        Collections.sort(sorted, (a, b) -> {
+            int byTop = Float.compare(a.getTop(), b.getTop());
+            return byTop != 0 ? byTop : Float.compare(a.getLeft(), b.getLeft());
+        });
+        int start = 0;
+        while (start < sorted.size()) {
+            AccessibleNode first = sorted.get(start);
+            float rowBottom = first.getTop() + first.getHeight();
+            int end = start + 1;
+            while (end < sorted.size() && sorted.get(end).getTop() + sorted.get(end).getHeight() / 2 < rowBottom) {
+                end++;
+            }
+            List<AccessibleNode> row = sorted.subList(start, end);
+            Collections.sort(row, (a, b) -> {
+                boolean textA = a.getInfo().getRole() == AccessibleInfo.Role.TEXT;
+                boolean textB = b.getInfo().getRole() == AccessibleInfo.Role.TEXT;
+                if (textA != textB) {
+                    return textA ? -1 : 1;
+                }
+                return Float.compare(a.getLeft(), b.getLeft());
+            });
+            result.addAll(row);
+            start = end;
+        }
     }
 
     /** Drops a frame that could not be drawn to the end. */
@@ -257,8 +315,8 @@ public final class Accessibility {
         }
     }
 
-    private static void announceLive() {
-        for (AccessibleNode node : frameNodes) {
+    private static void announceLive(List<AccessibleNode> nodes) {
+        for (AccessibleNode node : nodes) {
             if (!node.getInfo().isLive()) {
                 continue;
             }
