@@ -4,6 +4,7 @@ import com.badlogic.gdx.math.Rectangle;
 
 import forge.Forge;
 import forge.Graphics;
+import forge.accessibility.Accessibility;
 import forge.assets.FSkinColor;
 import forge.assets.FSkinColor.Colors;
 import forge.assets.FSkinTexture;
@@ -193,6 +194,19 @@ public abstract class FDropDown extends FScrollPane {
         float h = getHeight();
         g.drawImage(Forge.isMobileAdventureMode ? FSkinTexture.ADV_BG_TEXTURE : FSkinTexture.BG_TEXTURE, 0, 0, w, h);
         g.fillRect(FScreen.getTextureOverlayColor(), 0, 0, w, h);
+    }
+
+    @Override
+    public void draw(Graphics g) {
+        //a drop down that closes by itself is a popup, which a screen reader should read before what is behind it
+        boolean popup = autoHide();
+        if (popup) {
+            Accessibility.beginLayer(this);
+        }
+        super.draw(g);
+        if (popup) {
+            Accessibility.endLayer();
+        }
     }
 
     protected boolean drawAboveOverlay() {

@@ -10,6 +10,7 @@ import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.math.Rectangle;
 
 import forge.Forge;
+import forge.menu.FDropDown;
 import forge.toolbox.FDisplayObject;
 import forge.toolbox.FOverlay;
 
@@ -39,8 +40,10 @@ public final class Accessibility {
     private static long lastCollectTime;
     private static int disabledDepth;
     private static Object frameRoot;
-    //one list for the screen and one for each overlay drawn on top of it, in paint order
+    //one list for the screen and one for each overlay or popup drawn on top of it, in paint order
     private static final List<List<AccessibleNode>> frameLayers = new ArrayList<>();
+    //the layers whose drawing has not finished yet, innermost last
+    private static final List<List<AccessibleNode>> openLayers = new ArrayList<>();
     private static List<AccessibleNode> frameNodes;
 
     private static volatile List<AccessibleNode> shownNodes = Collections.emptyList();
@@ -113,6 +116,7 @@ public final class Accessibility {
         }
         lastCollectTime = now;
         frameLayers.clear();
+        openLayers.clear();
         startLayer();
         disabledDepth = 0;
         frameRoot = root;
@@ -130,13 +134,36 @@ public final class Accessibility {
         if (overlay.preventInputBehindOverlay()) {
             frameLayers.clear();
         }
+        openLayers.clear();
         startLayer();
         frameRoot = overlay;
+    }
+
+    /**
+     * Notes that a popup inside the screen or overlay being drawn is about to draw its content,
+     * e.g. a drop down menu. Its content is read first for as long as it is open.
+     */
+    public static void beginLayer(Object root) {
+        if (!collecting) {
+            return;
+        }
+        startLayer();
+        frameRoot = root;
+    }
+
+    /** Ends what {@link #beginLayer(Object)} started; what is drawn next belongs to what is underneath again. */
+    public static void endLayer() {
+        if (!collecting || openLayers.size() < 2) {
+            return;
+        }
+        openLayers.remove(openLayers.size() - 1);
+        frameNodes = openLayers.get(openLayers.size() - 1);
     }
 
     private static void startLayer() {
         frameNodes = new ArrayList<>();
         frameLayers.add(frameNodes);
+        openLayers.add(frameNodes);
     }
 
     /**
@@ -189,12 +216,13 @@ public final class Accessibility {
             return;
         }
         collecting = false;
-        //the topmost overlay comes first, it is what the player has to deal with now
+        //whatever is on top comes first, it is what the player has to deal with now
         List<AccessibleNode> nodes = new ArrayList<>();
         for (int i = frameLayers.size() - 1; i >= 0; i--) {
             addInReadingOrder(frameLayers.get(i), nodes);
         }
         frameLayers.clear();
+        openLayers.clear();
         frameNodes = null;
         announceLive(nodes);
         //a screen that had nothing to activate and now does is as good as a new one, e.g. loading has finished
@@ -287,11 +315,16 @@ public final class Accessibility {
     }
 
     /**
-     * Does what the Escape key does: closes the dialog or menu on top, otherwise goes back one screen.
-     * Called by the bridge for the screen reader's "back" gesture.
+     * Closes the popup on top if there is one. Otherwise does what the Escape key does: closes the
+     * dialog on top or goes back one screen. Called by the bridge for the screen reader's "back" gesture.
      */
     public static void performEscape() {
         Gdx.app.postRunnable(() -> {
+            if (shownRoot instanceof FDropDown) {
+                ((FDropDown) shownRoot).cancel();
+                log("escape: popup closed");
+                return;
+            }
             InputProcessor inputProcessor = Forge.getInputProcessor();
             if (inputProcessor != null) {
                 inputProcessor.keyDown(Keys.ESCAPE);
