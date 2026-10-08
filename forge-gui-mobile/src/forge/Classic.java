@@ -1,5 +1,6 @@
 package forge;
 
+import forge.accessibility.Accessibility;
 import forge.gui.error.BugReporter;
 import forge.toolbox.FContainer;
 import forge.toolbox.FOverlay;
@@ -17,6 +18,9 @@ public class Classic {
         if (screen == null) // shouldn't be null
             return;
         try {
+            if (screen == Forge.getCurrentScreen() || screen == Forge.splashScreen) {
+                Accessibility.beginFrame(screen);
+            } //else keep what the screen reader has until the transition is over
             Forge.getGraphics().setProjectionMatrix(Forge.camera.combined);
             Forge.getGraphics().begin(Forge.getScreenWidth(), Forge.getScreenHeight());
             screen.screenPos.setSize(Forge.getScreenWidth(), Forge.getScreenHeight());
@@ -34,6 +38,7 @@ public class Classic {
                     if (overlay.getRotate180()) {
                         Forge.getGraphics().startRotateTransform(Forge.getScreenWidth() / 2f, Forge.getScreenHeight() / 2f, 180);
                     }
+                    Accessibility.beginOverlay(overlay);
                     overlay.draw(Forge.getGraphics());
                     if (overlay.getRotate180()) {
                         Forge.getGraphics().endTransform();
@@ -48,7 +53,9 @@ public class Classic {
             //sample batch
             FrameRate.getInstance().sampleClassic(Forge.showFPS);
             Forge.getGraphics().end();
+            Accessibility.endFrame();
         } catch (Exception e) {
+            Accessibility.abortFrame();
             //check if sentry is enabled, if not it will call the gui interface but here we end the graphics so we only send it via sentry.
             if (BugReporter.isSentryEnabled())
                 BugReporter.reportException(e);

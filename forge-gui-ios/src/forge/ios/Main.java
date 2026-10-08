@@ -25,6 +25,7 @@ import com.badlogic.gdx.backends.iosrobovm.IOSFiles;
 import com.badlogic.gdx.graphics.glutils.HdpiMode;
 
 import forge.Forge;
+import forge.accessibility.Accessibility;
 import forge.assets.ImageCache;
 import forge.interfaces.IDeviceAdapter;
 
@@ -158,6 +159,15 @@ public class Main extends IOSApplication.Delegate {
 
             final ApplicationListener app = Forge.getApp(null, new IOSClipboard(), new IOSAdapter(), assetsDir, false, isTablet, 0);
             IOSApplication iosApp = new IOSApplication(app, config);
+
+            // Offer the interface to VoiceOver. Costs nothing while VoiceOver is off, and must never
+            // keep the app from starting.
+            try {
+                Accessibility.setDebugLogging(true); // test builds: log what VoiceOver is given
+                Accessibility.setBridge(new VoiceOverBridge(iosApp));
+            } catch (Throwable t) {
+                log("VoiceOver bridge not installed: " + t);
+            }
 
             // Re-apply System.out/err redirection - IOSApplication replaces them with FoundationLogPrintStream
             // which doesn't appear in Console.app on iOS 26+

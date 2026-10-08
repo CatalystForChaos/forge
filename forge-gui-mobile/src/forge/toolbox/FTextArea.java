@@ -5,6 +5,7 @@ import com.badlogic.gdx.utils.Align;
 
 import forge.Forge;
 import forge.Graphics;
+import forge.accessibility.AccessibleInfo;
 import forge.animation.GifAnimation;
 import forge.assets.FSkinColor;
 import forge.assets.FSkinFont;
@@ -45,6 +46,11 @@ public class FTextArea extends FScrollPane {
     public void setText(String text0) {
         text = text0;
         revalidate();
+    }
+
+    @Override
+    public AccessibleInfo getAccessibleInfo() {
+        return AccessibleInfo.text(text);
     }
 
     public int getAlignment() {

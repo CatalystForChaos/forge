@@ -19,6 +19,7 @@ import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.scenes.scene2d.utils.ScissorStack;
 import com.badlogic.gdx.utils.Disposable;
+import forge.accessibility.Accessibility;
 import forge.adventure.util.Config;
 import forge.assets.FImage;
 import forge.assets.FSkinColor;
@@ -291,7 +292,17 @@ public class Graphics implements Disposable {
                 //screen position won't change for this object from a 180 degree rotation
             }
 
+            final boolean collecting = Accessibility.isCollecting();
+            if (collecting) {
+                //bounds are only screen coordinates while nothing is rotated
+                Accessibility.beginObject(displayObj, transformCount != 0 ? displayObj.screenPos : visibleBounds);
+            }
+
             displayObj.draw(this);
+
+            if (collecting) {
+                Accessibility.endObject(displayObj);
+            }
 
             if (displayObj.getRotate90() || displayObj.getRotate180()) {
                 endTransform();

@@ -8,6 +8,7 @@ import com.badlogic.gdx.utils.Align;
 
 import forge.Forge;
 import forge.Graphics;
+import forge.accessibility.AccessibleInfo;
 import forge.assets.FSkinColor;
 import forge.assets.FSkinColor.Colors;
 import forge.assets.FSkinFont;
@@ -360,6 +361,12 @@ public class FButton extends FDisplayObject implements IButton {
     @Override
     public void setSelected(boolean b0) {
         setToggled(b0);
+    }
+
+    @Override
+    public AccessibleInfo getAccessibleInfo() {
+        AccessibleInfo info = AccessibleInfo.button(StringUtils.isEmpty(text) ? getAccessibleName() : text);
+        return info == null ? null : info.selected(toggled);
     }
 
     @Override

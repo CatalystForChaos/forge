@@ -211,6 +211,7 @@ public abstract class FScreen extends FContainer {
 
         public DefaultHeader(String headerCaption) {
             btnBack = add(new FLabel.Builder().icon(new BackIcon(HEIGHT, HEIGHT)).pressedColor(getBtnPressedColor()).align(Align.center).command(e -> Forge.back()).build());
+            btnBack.setAccessibleName(Forge.getLocalizer().getMessage("lblBack"));
             lblCaption = add(new FLabel.Builder().text(headerCaption).font(FONT).align(Align.center).build());
         }
 
@@ -259,6 +260,7 @@ public abstract class FScreen extends FContainer {
                     menu.show(btnMenu, 0, HEIGHT);
                 }
             }).build());
+            btnMenu.setAccessibleName(Forge.getLocalizer().getMessage("lblMenu"));
         }
 
         @Override

@@ -6,6 +6,7 @@ import org.apache.commons.lang3.StringUtils;
 import com.badlogic.gdx.utils.Align;
 
 import forge.Graphics;
+import forge.accessibility.AccessibleInfo;
 import forge.assets.FSkinColor;
 import forge.assets.FSkinColor.Colors;
 import forge.assets.FSkinFont;
@@ -106,6 +107,11 @@ public class VPrompt extends FContainer {
     
     private class MessageLabel extends FDisplayObject {
         private final TextRenderer renderer = new TextRenderer();
+
+        @Override
+        public AccessibleInfo getAccessibleInfo() {
+            return AccessibleInfo.text(message);
+        }
 
         @Override
         public boolean tap(float x, float y, int count) {

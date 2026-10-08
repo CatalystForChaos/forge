@@ -6,6 +6,7 @@ import com.badlogic.gdx.utils.Align;
 
 import forge.Forge;
 import forge.Graphics;
+import forge.accessibility.AccessibleInfo;
 import forge.assets.FImage;
 import forge.assets.FSkinColor;
 import forge.assets.FSkinColor.Colors;
@@ -278,6 +279,16 @@ public class FLabel extends FDisplayObject implements IButton {
             return true;
         }
         return false;
+    }
+
+    @Override
+    public AccessibleInfo getAccessibleInfo() {
+        String label = text == null || text.isEmpty() ? getAccessibleName() : text;
+        if (command == null && !selectable) {
+            return AccessibleInfo.text(label);
+        }
+        AccessibleInfo info = AccessibleInfo.button(label);
+        return info == null ? null : info.selected(selectable && selected);
     }
 
     public TextBounds getAutoSizeBounds() {

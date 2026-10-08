@@ -11,6 +11,7 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.utils.Align;
 
 import forge.Graphics;
+import forge.accessibility.AccessibleInfo;
 import forge.assets.FSkinFont;
 import forge.gui.interfaces.IProgressBar;
 import forge.util.Utils;
@@ -133,6 +134,18 @@ public class FProgressBar extends FDisplayObject implements IProgressBar {
 
     public void setMaximum(int maximum0) {
         maximum = maximum0;
+    }
+
+    @Override
+    public AccessibleInfo getAccessibleInfo() {
+        AccessibleInfo info = AccessibleInfo.text(desc);
+        if (info == null) {
+            return null;
+        }
+        if (showCount && !showProgressTrail && maximum > 0) {
+            info.value(percentMode ? (100 * value / maximum) + "%" : value + " of " + maximum);
+        }
+        return info.live(); //speak each new stage of whatever is in progress
     }
 
     @Override

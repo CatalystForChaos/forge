@@ -6,6 +6,7 @@ import com.badlogic.gdx.utils.Timer.Task;
 
 import forge.Forge;
 import forge.Graphics;
+import forge.accessibility.AccessibleInfo;
 import forge.assets.FImage;
 import forge.assets.FSkinColor;
 import forge.assets.FSkinColor.Colors;
@@ -127,6 +128,12 @@ public class FMenuItem extends FDisplayObject implements IButton {
 
     protected boolean showPressedColor() {
         return (pressed && !tabMode) || selected;
+    }
+
+    @Override
+    public AccessibleInfo getAccessibleInfo() {
+        AccessibleInfo info = AccessibleInfo.button(text);
+        return info == null ? null : info.selected(selected);
     }
 
     public FSkinColor getTextColor() {

@@ -17,6 +17,7 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.Clipboard;
 import com.badlogic.gdx.utils.Disposable;
+import forge.accessibility.Accessibility;
 import forge.adventure.scene.*;
 import forge.adventure.stage.MapStage;
 import forge.adventure.stage.WorldStage;
@@ -344,6 +345,19 @@ public class Forge implements ApplicationListener {
 
     public static InputProcessor getInputProcessor() {
         return inputProcessor;
+    }
+
+    /**
+     * Taps the classic interface at the given screen position, as a finger would.
+     * Used to activate an element on behalf of a screen reader. Must be called on the render thread.
+     *
+     * @return whether anything handled the tap
+     */
+    public static boolean simulateTap(float x, float y) {
+        if (inputProcessor instanceof MainInputProcessor mainInputProcessor) {
+            return mainInputProcessor.simulateTap(x, y);
+        }
+        return false;
     }
 
     public static Graphics getGraphics() {
@@ -973,6 +987,7 @@ public class Forge implements ApplicationListener {
         // get classic/splash/transition/closing screen in priority order
         FContainer screen = getHierachyScreen();
         if (screen == null) {
+            Accessibility.clear();
             if (isMobileAdventureMode) {
                 // render adventure
                 Adventure.getInstance().render(delta);
@@ -1391,6 +1406,24 @@ public class Forge implements ApplicationListener {
             }
             mouseButtonID = button;
             return super.touchDown(x, y, pointer, button);
+        }
+
+        //same effect as a finger going down and up again at one point, without waiting for the gesture timers
+        private boolean simulateTap(float x, float y) {
+            lastInputWasController = false;
+            if (transitionScreen != null) {
+                return false;
+            }
+            updatePotentialListeners(x, y);
+            if (keyInputAdapter != null) {
+                if (!keyInputAdapter.allowTouchInput() || !potentialListeners.contains(keyInputAdapter.getOwner())) {
+                    endKeyInput(); //end key input if needed
+                }
+            }
+            mouseButtonID = Input.Buttons.LEFT;
+            press(x, y);
+            release(x, y);
+            return tap(x, y, 1);
         }
 
         @Override

@@ -6,6 +6,7 @@ import com.badlogic.gdx.math.Rectangle;
 
 import forge.Forge;
 import forge.Graphics;
+import forge.accessibility.AccessibleInfo;
 import forge.gui.GuiBase;
 
 public abstract class FDisplayObject {
@@ -16,6 +17,7 @@ public abstract class FDisplayObject {
     private boolean rotate90 = false;
     private boolean rotate180 = false;
     private boolean hovered = false;
+    private String accessibleName;
     private final Rectangle bounds = new Rectangle();
     public final Rectangle screenPos = new Rectangle();
 
@@ -114,6 +116,19 @@ public abstract class FDisplayObject {
         return null;
     }
     public void setToolTipText(String s0) {
+    }
+
+    //name for a screen reader to speak when the object shows no text of its own, e.g. a button with only an icon
+    public String getAccessibleName() {
+        return accessibleName;
+    }
+    public void setAccessibleName(String accessibleName0) {
+        accessibleName = accessibleName0;
+    }
+
+    //override to describe this object to a screen reader, return null if it has nothing to say
+    public AccessibleInfo getAccessibleInfo() {
+        return null;
     }
 
     //override to return true if drawOverlay should be called on container before drawing this object
